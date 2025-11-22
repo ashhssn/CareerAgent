@@ -6,22 +6,20 @@ from langchain_community.document_loaders import WebBaseLoader
 
 load_dotenv()
 
-def search_jobs(query: str) -> List[str]:
+def search_jobs(query: str) -> List[dict]:
     """
     Searches the web for job listings using Tavily.
-    Returns a list of URLs
+    Returns a list of dictionaries
     """
 
     tool = TavilySearch(
-        max_results=3
+        max_results=5
     )
 
     try:
         ret = tool.invoke({'query': query})
-        results = ret['results']
 
-        urls = [res['url'] for res in results if 'url' in res]
-        return urls
+        return ret['results']
     except Exception as e:
         print(f"Error in search_jobs: {e}")
         return []
