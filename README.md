@@ -2,7 +2,7 @@
 
 An intelligent agent that analyzes your resume against a target job description while simultaneously discovering other similar opportunities for you.
 
-![alt text](<CareerAgent - Made with Clipchamp.gif>)
+![alt text](assets/CareerAgent.gif)
 
 ## Overview
 
