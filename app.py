@@ -1,97 +1,88 @@
 import streamlit as st
 from src.graph import build_graph
-import sys
-from contextlib import contextmanager
-from io import StringIO
+from src.tools import read_resume_from_pdf
+import os
 
-@contextmanager
-def st_capture(output_func):
-    """A context manager to capture stdout and display it in a Streamlit container."""
-    with StringIO() as stdout, redirect_stdout(stdout):
-        old_write = stdout.write
+st.set_page_config(page_title="CareerAgent", page_icon="🕵️‍♂️", layout="wide")
 
-        def new_write(string):
-            ret = old_write(string)
-            output_func(stdout.getvalue())
-            return ret
-
-        stdout.write = new_write
-        yield
-
-@contextmanager
-def redirect_stdout(new_target):
-    """Temporarily redirect stdout."""
-    old_target, sys.stdout = sys.stdout, new_target
-    try:
-        yield new_target
-    finally:
-        sys.stdout = old_target
-
-st.set_page_config(page_title="CareerAgent", page_icon="🕵️‍♂️")
-
-st.title("🕵️‍♂️ CareerAgent: AI Job Hunter")
-st.markdown("Pairs your resume with live job listings to draft custom cover letters.")
+st.title("CareerAgent: AI Career Architect")
+st.markdown("Analyzes your fit for a specific job AND finds new opportunities simultaneously.")
 
 # sidebar
 with st.sidebar:
     st.header("Your Details")
-    user_resume = st.text_area(
-        "Paste your Resume/CV here:",
-        height=300,
-        value="John Doe. Python Developer with 3 years experience in AI..."
+    user_resume = st.file_uploader(
+        "Upload your Resume (in .pdf)",
+        type="pdf"
     )
     
-    st.header("Job Preferences")
-    job_query = st.text_input(
-        "What job are you looking for?",
-        value="Python AI Agent Developer Remote"
+    st.header("Target Job Analysis")
+    target_url = st.text_input(
+        "Paste a specific Job URL to analyze:"
     )
     
-    submit_btn = st.button("Start Headhunting")
+    submit_btn = st.button("Start Analysis")
 
 # main area
 if submit_btn:
-    if not user_resume or not job_query:
-        st.error("Please provide both a resume and a job query.")
+    if not user_resume or not target_url:
+        st.error("Please provide both a PDF resume and a Target Job URL.")
     else:
-        status_container = st.empty()
-        
         try:
-            # run the agent
+            # temporarily save pdf
+            with open("temp_resume.pdf", "wb") as f:
+                f.write(user_resume.getbuffer())
+            
+            # extract resume text
+            resume_text = read_resume_from_pdf("temp_resume.pdf")
+
+            # remove temp pdf
+            os.remove("temp_resume.pdf")
+            
+            # build graph
             app = build_graph()
             inputs = {
-                "user_resume": user_resume,
-                "job_search_query": job_query
+                "resume_text": resume_text,
+                "target_url": target_url
             }
             
-            with st.spinner("Agent is working... (Researching -> Selecting -> Scraping -> Writing)", show_time=True):
-                with st.expander("Agent Steps"):
-                    log_container = st.empty()
-
-                    with st_capture(log_container.code):
-                        result = app.invoke(inputs)
+            # Run agentic workflow
+            with st.status("Agent is working...", expanded=False) as status:
+                # TODO: find a way to stream intermediate steps to UI without blocking ThreadPoolExecutor
+                st.write("1. Profiling Resume...")
+                st.write("2. Searching for Jobs (Track A)...")
+                st.write("3. Analyzing Target URL (Track B)...")
                 
-            # get the results to display
-            final_letter = result.get('final_cover_letter')
-            search_results = result.get('found_job_results', [])
-            selected_url = result.get('selected_job_url')
-    
-            st.success("Job Done!")
-            
-            st.subheader("Generated Cover Letter")
-            st.markdown(final_letter)
-            
-            # transparency section
-            with st.expander("View Search Logic (Debug)"):
-                st.info(f"**AI Selected this URL:** {selected_url}")
+                result = app.invoke(inputs)
                 
-                st.write("---")
-                st.write("**All Search Results:**")
-                for res in search_results:
-                    # Handle cases where Tavily might return partial data
-                    url = res.get('url', 'No URL')
-                    snippet = res.get('content', 'No snippet')[:100] # Preview
-                    st.markdown(f"- **[{url}]({url})**: _{snippet}..._")
+                status.update(label="Analysis Complete!", state="complete", expanded=False)
+            
+            # get results to display
+            gap_analysis = result.get('gap_analysis')
+            found_jobs = result.get('found_job_urls', [])
+            search_query = result.get('generated_search_query')
+            
+            col1, col2 = st.columns([0.6, 0.4])
+            
+            with col1:
+                st.subheader("📝 Deep Dive Analysis")
+                st.markdown(gap_analysis)
+                
+            with col2:
+                st.subheader("Similar Opportunities")
+                st.info(f"**AI Search Query:** `{search_query}`")
+                
+                if found_jobs:
+                    for job in found_jobs:
+                        url = job.get('url')
+                        content = job.get('content', '')[:150]
+                        st.markdown(f"**🔗 [Open Job Link]({url})**")
+                        st.caption(f"{content}...")
+                        st.divider()
+                else:
+                    st.warning("No additional similar jobs found.")
                         
         except Exception as e:
             st.error(f"An error occurred: {e}")
+            # print to streamlit for debugging
+            st.write(e)
