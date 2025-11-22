@@ -3,6 +3,7 @@ from typing import List
 from dotenv import load_dotenv
 from langchain_tavily import TavilySearch
 from langchain_community.document_loaders import WebBaseLoader
+from pypdf import PdfReader
 
 load_dotenv()
 
@@ -13,7 +14,8 @@ def search_jobs(query: str) -> List[dict]:
     """
 
     tool = TavilySearch(
-        max_results=5
+        max_results=5,
+        country='Singapore'
     )
 
     try:
@@ -38,3 +40,14 @@ def scrape_job_description(url: str) -> str:
         return full_text.strip()
     except Exception as e:
         return f"Error in scraping {url}: {e}"
+    
+def read_resume_from_pdf(file_path: str) -> str:
+    """
+    Extracts content from a resume in PDF.
+    Returns the content.
+    """
+    reader = PdfReader(file_path)
+    content = ""
+    for page in reader.pages:
+        content += page.extract_text() + "\n"
+    return content
