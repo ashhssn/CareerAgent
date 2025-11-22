@@ -2,6 +2,8 @@
 
 An intelligent agent that analyzes your resume against a target job description while simultaneously discovering other similar opportunities for you.
 
+![alt text](<CareerAgent - Made with Clipchamp.gif>)
+
 ## Overview
 
 *CareerAgent* is a Streamlit web application that leverages the power of Large Language Models (LLMs) and graph-based agentic workflows to provide a dual-track career analysis. It helps job seekers in two primary ways:
